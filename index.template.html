@@ -130,6 +130,7 @@
   <footer>
     <button class="tool active" data-tool="0">Path<small>$1</small></button>
     <button class="tool" data-tool="1">Track<small>$10</small></button>
+    <button class="tool" data-tool="5">Loop<small>$25</small></button>
     <button class="tool" data-tool="2">Bulldoze<small>free</small></button>
     <button class="tool" data-tool="3">Raise<small>$2</small></button>
     <button class="tool" data-tool="4">Lower<small>free</small></button>
@@ -237,9 +238,26 @@ async function main() {
   const trackGeo = new THREE.BoxGeometry(1, 0.15, 1);
   const trackMat = new THREE.MeshStandardMaterial({ color: COASTER_COLOR });
 
+  const LOOP_RADIUS = 0.45;
+  const LOOP_TUBE = 0.04;
+  const LOOP_ANIM_MS = 600;
+  const loopGeo = new THREE.TorusGeometry(LOOP_RADIUS, LOOP_TUBE, 8, 24);
+  const loopMat = new THREE.MeshStandardMaterial({ color: COASTER_COLOR });
+
+  function loopAxisEW(x, y) {
+    const isTrackish = (nx, ny) => {
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) return false;
+      const t = ex.get_tile(nx, ny);
+      return t === 2 || t === 3;
+    };
+    const horiz = isTrackish(x - 1, y) || isTrackish(x + 1, y);
+    const vert  = isTrackish(x, y - 1) || isTrackish(x, y + 1);
+    return horiz || !vert;
+  }
+
   const tileCache = new Map();
 
-  function buildTileMesh(type, x, y, height) {
+  function buildTileMesh(type, x, y, height, axisEW) {
     if (type === 1) {
       const m = new THREE.Mesh(pathGeo, pathMat);
       m.position.set(x + 0.5, 0.05, y + 0.5);
@@ -250,6 +268,21 @@ async function main() {
       m.position.set(x + 0.5, 0.075 + height * HEIGHT_UNIT, y + 0.5);
       return m;
     }
+    if (type === 3) {
+      const group = new THREE.Group();
+      const pad = new THREE.Mesh(trackGeo, trackMat);
+      pad.position.set(x + 0.5, 0.075 + height * HEIGHT_UNIT, y + 0.5);
+      group.add(pad);
+      const torus = new THREE.Mesh(loopGeo, loopMat);
+      const cy = 0.15 + height * HEIGHT_UNIT + LOOP_RADIUS;
+      torus.position.set(x + 0.5, cy, y + 0.5);
+      // Default TorusGeometry ring plane is world XY (normal = Z) — correct
+      // for east-west travel. Rotate PI/2 around Y for north-south travel so
+      // the ring plane becomes world YZ.
+      if (!axisEW) torus.rotation.y = Math.PI / 2;
+      group.add(torus);
+      return group;
+    }
     return null;
   }
 
@@ -258,17 +291,18 @@ async function main() {
       for (let x = 0; x < W; x++) {
         const key = y * W + x;
         const t = ex.get_tile(x, y);
-        const h = t === 2 ? ex.get_height(x, y) : 0;
+        const h = (t === 2 || t === 3) ? ex.get_height(x, y) : 0;
+        const axisEW = t === 3 ? loopAxisEW(x, y) : false;
         const cached = tileCache.get(key);
-        if (cached && cached.type === t && cached.height === h) continue;
+        if (cached && cached.type === t && cached.height === h && cached.axisEW === axisEW) continue;
         if (cached) {
           tileGroup.remove(cached.mesh);
           tileCache.delete(key);
         }
         if (t !== 0) {
-          const mesh = buildTileMesh(t, x, y, h);
+          const mesh = buildTileMesh(t, x, y, h, axisEW);
           tileGroup.add(mesh);
-          tileCache.set(key, { type: t, height: h, mesh });
+          tileCache.set(key, { type: t, height: h, axisEW, mesh });
         }
       }
     }
@@ -390,6 +424,8 @@ async function main() {
 
   let lastFrame = performance.now();
 
+  const guestLoopState = new Array(MAX_GUESTS).fill(null);
+
   function frame(now) {
     const dt = Math.min(200, now - lastFrame);
     lastFrame = now;
@@ -403,16 +439,50 @@ async function main() {
       const g = guestPool[i];
       if (packed === 0) {
         g.visible = false;
+        guestLoopState[i] = null;
         continue;
       }
       const state = packed & 0xff;
       const gx = (packed >> 8) & 0xff;
       const gy = (packed >> 16) & 0xff;
       g.visible = true;
-      const yOffset = state === 2
-        ? 0.15 + ex.get_height(gx, gy) * HEIGHT_UNIT
-        : 0;
-      g.position.set(gx + 0.5, yOffset, gy + 0.5);
+
+      const tileType = state === 2 ? ex.get_tile(gx, gy) : 0;
+      if (state === 2 && tileType === 3) {
+        const tileKey = gy * W + gx;
+        let ls = guestLoopState[i];
+        if (!ls || ls.tileKey !== tileKey) {
+          const h = ex.get_height(gx, gy);
+          ls = {
+            tileKey,
+            startMs: now,
+            axisEW: loopAxisEW(gx, gy),
+            cx: gx + 0.5,
+            cy: 0.15 + h * HEIGHT_UNIT + LOOP_RADIUS,
+            cz: gy + 0.5,
+          };
+          guestLoopState[i] = ls;
+        }
+        const phase = Math.min(1, (now - ls.startMs) / LOOP_ANIM_MS);
+        const theta = -Math.PI / 2 + phase * Math.PI * 2;
+        const along = Math.cos(theta) * LOOP_RADIUS;
+        const up    = Math.sin(theta) * LOOP_RADIUS;
+        if (ls.axisEW) {
+          g.position.set(ls.cx + along, ls.cy + up, ls.cz);
+          g.rotation.set(0, 0, theta + Math.PI / 2);
+        } else {
+          g.position.set(ls.cx, ls.cy + up, ls.cz + along);
+          g.rotation.set(-(theta + Math.PI / 2), 0, 0);
+        }
+      } else {
+        guestLoopState[i] = null;
+        const yOffset = state === 2
+          ? 0.15 + ex.get_height(gx, gy) * HEIGHT_UNIT
+          : 0;
+        g.position.set(gx + 0.5, yOffset, gy + 0.5);
+        g.rotation.set(0, 0, 0);
+      }
+
       const target = state === 2 ? RIDING_SHIRT : g.userData.baseColor;
       if (g.userData.shirtMat.color.getHex() !== target) {
         g.userData.shirtMat.color.setHex(target);
