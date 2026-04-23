@@ -59,22 +59,15 @@
   .hud span b { color: var(--accent); }
   main {
     flex: 1 1 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     min-height: 0;
-    padding: 8px;
+    position: relative;
   }
   canvas {
-    background: var(--grass);
     display: block;
     touch-action: none;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    border-radius: 4px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
   }
   footer {
     display: flex;
@@ -142,6 +135,8 @@
 </div>
 
 <script type="module">
+import * as THREE from "https://esm.sh/three@0.160.0";
+
 const WASM_B64 = "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OwEAIABBAmohAAwACwsgA0GwB2okgICAgAAgBAsEAEEACwQAQQcLUwECf0EAIQECQCAAQT9LDQAgAEEMbCIALQCKgMCAACICRQ0AIABBgIDAgABqLwEIIgBBFG4iAUEQdCABQWxsIABqQQh0IAJyQf//A3FyIQELIAELOQECf0EKIQBBACEBAkADQCAAQYoGRg0BIAEgAEGAgMCAAGotAABBAEdqIQEgAEEMaiEADAALCyABCwsAQQAoAoSNwIAACywBAX9BACECAkAgAEETSw0AIAFBDksNACABQRRsIABqLQDYisCAACECCyACCwQAQQ8LlAEBAX8CQEGsAkUNAEHYisCAAEEAQawC/AsAC0GAeiEBAkADQCABRQ0BIAFBh4bAgABqQQA2AAAgAUGAhsCAAGpCADcCACABQQxqIQEMAAsLQQBC5AA3AoSNwIAAQQAgAEEBIABBAUsbNgKMjcCAAAJAQdgERQ0AQYCGwIAAQf8BQdgE/AsAC0EAQf//AzsBkI3AgAALBQBBwAALsQUBB38jgICAgABBEGsiASSAgICAAEEAQX9BACgCiI3AgAAiAiAAQfQDIABB9ANJGyIDaiIAIAAgAkkbIgQ2AoiNwIAAAkADQAJAIARBzw9LDQBBACECDAILQQAgBEGwcGoiBDYCiI3AgABBAC4BkI3AgABBAEgNAEEAIQIDQCACIgBBgAZGDQEgAEEMaiECIABBioDAgABqLQAADQALIABBgIDAgABqIgBBjAE7AQggAEEBOgAKIABCADcCAEEAKAKIjcCAACEEDAALCwNAAkACQAJAAkACQCACQcAARg0AIAJBDGwhACACQQFqIgUhAiAALQCKgMCAACIERQ0FIABBgIDAgABqIQAgBSECAkACQAJAIARBf2oOAwABAggLQQAuAZCNwIAAIgZBAEgNBCAAKAIAIANqIQIgBkH//wNxIQcDQCACQawCSQ0GAkAgAC8BCCIEIAdGDQAgASAEIAYQgICAgAACQCABLwEAQQFxDQAgAEEANgIADAcLIAAgAS8BAjsBCCACQdR9aiECDAELCyAAQQI6AAogAEIANwIADAYLAkAgACgCBCADaiICQdwLSQ0AQQBBACgChI3AgABBCmo2AoSNwIAAIABBAzoACiAAQQA2AgQgAEEANgIADAYLIAAgAjYCBAwFCyAAKAIAIANqIQIDQCACQawCSQ0CAkACQCAALwEIIgRBjAFGDQAgAUEIaiAEQYwBEICAgIAAIAEvAQhBAXENAQsgAEEAOgAKDAYLIAAgAS8BCjsBCCACQdR9aiECDAALC0EAQQAoAoyNwIAAIgBBufPd8XkgABsiAEENdCAAcyIAQRF2IABzIgBBBXQgAHM2AoyNwIAAIAFBEGokgICAgAAPCyAAIAI2AgAMAgsgAEEDOgAKDAELIAAgAjYCAAsgBSECDAALCwQAQRQLBwADQAwACwsLng0BAEGAgMAAC5QNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZAAAAAAAAAABAAAA//8AAA==";
 
 function b64ToBytes(b64) {
@@ -176,28 +171,152 @@ async function main() {
   const ENT_X = ex.entrance_x();
   const ENT_Y = ex.entrance_y();
 
+  const SHIRT_COLORS = [
+    0xe23b3b, 0x3b82e2, 0x2ea84a, 0xa64ad4,
+    0xff9f40, 0xe84a9a, 0x14b8a6, 0xeab308,
+  ];
+  const SKIN_COLOR = 0xf3c9a0;
+  const LEG_COLOR = 0x2b2b2b;
+  const RIDING_SHIRT = 0xffe066;
+  const GRASS_COLOR = 0x4a8f3e;
+  const PATH_COLOR = 0xc9b07a;
+  const COASTER_COLOR = 0xb03030;
+  const COASTER_INNER_COLOR = 0x5a0a0a;
+  const ENTRANCE_COLOR = 0xf5c242;
+
   const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
 
-  let tileSize = 32;
-  let dpr = 1;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87b7d9);
 
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
+  // Look at the center of the board from above-behind.
+  const boardCenter = new THREE.Vector3(W / 2, 0, H / 2);
+  camera.position.set(W / 2, Math.max(W, H) * 0.9, H + 8);
+  camera.lookAt(boardCenter);
+
+  // Lights.
+  const hemi = new THREE.HemisphereLight(0xbfe0ff, 0x3a5a2a, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+  sun.position.set(W, 20, -4);
+  scene.add(sun);
+
+  // Ground plane (grass).
+  const groundGeo = new THREE.PlaneGeometry(W, H);
+  const groundMat = new THREE.MeshStandardMaterial({ color: GRASS_COLOR });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(W / 2, 0, H / 2);
+  scene.add(ground);
+
+  // Faint grid lines.
+  const grid = new THREE.GridHelper(Math.max(W, H), Math.max(W, H), 0x000000, 0x000000);
+  grid.material.opacity = 0.12;
+  grid.material.transparent = true;
+  grid.position.set(Math.max(W, H) / 2, 0.002, Math.max(W, H) / 2);
+  scene.add(grid);
+
+  // Entrance marker: yellow pillar at the entrance tile.
+  const entranceGeo = new THREE.BoxGeometry(0.2, 0.5, 1);
+  const entranceMat = new THREE.MeshStandardMaterial({ color: ENTRANCE_COLOR });
+  const entrance = new THREE.Mesh(entranceGeo, entranceMat);
+  entrance.position.set(ENT_X + 0.1, 0.25, ENT_Y + 0.5);
+  scene.add(entrance);
+
+  // Tile mesh cache: key = y*W + x, value = { type, mesh }.
+  const tileGroup = new THREE.Group();
+  scene.add(tileGroup);
+
+  const pathGeo = new THREE.BoxGeometry(1, 0.1, 1);
+  const pathMat = new THREE.MeshStandardMaterial({ color: PATH_COLOR });
+  const coasterGeo = new THREE.BoxGeometry(1, 0.6, 1);
+  const coasterMat = new THREE.MeshStandardMaterial({ color: COASTER_COLOR });
+  const coasterInnerGeo = new THREE.BoxGeometry(0.6, 0.1, 0.6);
+  const coasterInnerMat = new THREE.MeshStandardMaterial({ color: COASTER_INNER_COLOR });
+
+  const tileCache = new Map();
+
+  function buildTileMesh(type, x, y) {
+    if (type === 1) {
+      const m = new THREE.Mesh(pathGeo, pathMat);
+      m.position.set(x + 0.5, 0.05, y + 0.5);
+      return m;
+    }
+    if (type === 2) {
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(coasterGeo, coasterMat);
+      body.position.set(x + 0.5, 0.3, y + 0.5);
+      group.add(body);
+      const inner = new THREE.Mesh(coasterInnerGeo, coasterInnerMat);
+      inner.position.set(x + 0.5, 0.65, y + 0.5);
+      group.add(inner);
+      return group;
+    }
+    return null;
+  }
+
+  function syncTiles() {
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const key = y * W + x;
+        const t = ex.get_tile(x, y);
+        const cached = tileCache.get(key);
+        if (cached && cached.type === t) continue;
+        if (cached) {
+          tileGroup.remove(cached.mesh);
+          tileCache.delete(key);
+        }
+        if (t !== 0) {
+          const mesh = buildTileMesh(t, x, y);
+          tileGroup.add(mesh);
+          tileCache.set(key, { type: t, mesh });
+        }
+      }
+    }
+  }
+
+  // Guest pool: one Group per potential guest, reused across frames.
+  const guestPool = [];
+  const bodyGeo = new THREE.BoxGeometry(0.32, 0.28, 0.2);
+  const headGeo = new THREE.SphereGeometry(0.11, 10, 8);
+  const legGeo = new THREE.BoxGeometry(0.12, 0.18, 0.12);
+  const skinMat = new THREE.MeshStandardMaterial({ color: SKIN_COLOR });
+  const legMat = new THREE.MeshStandardMaterial({ color: LEG_COLOR });
+
+  for (let i = 0; i < MAX_GUESTS; i++) {
+    const g = new THREE.Group();
+    const shirtMat = new THREE.MeshStandardMaterial({
+      color: SHIRT_COLORS[i % SHIRT_COLORS.length],
+    });
+    const body = new THREE.Mesh(bodyGeo, shirtMat);
+    body.position.y = 0.28;
+    g.add(body);
+    const head = new THREE.Mesh(headGeo, skinMat);
+    head.position.y = 0.53;
+    g.add(head);
+    const lLeg = new THREE.Mesh(legGeo, legMat);
+    lLeg.position.set(-0.08, 0.09, 0);
+    g.add(lLeg);
+    const rLeg = new THREE.Mesh(legGeo, legMat);
+    rLeg.position.set(0.08, 0.09, 0);
+    g.add(rLeg);
+    g.visible = false;
+    g.userData = { shirtMat, baseColor: SHIRT_COLORS[i % SHIRT_COLORS.length] };
+    scene.add(g);
+    guestPool.push(g);
+  }
+
+  // --- Resize ---
   function resize() {
-    dpr = window.devicePixelRatio || 1;
-    const main = canvas.parentElement;
-    const availW = main.clientWidth - 8;
-    const availH = main.clientHeight - 8;
-    // Largest integer tile size that fits both dimensions.
-    const ts = Math.max(8, Math.floor(Math.min(availW / W, availH / H)));
-    tileSize = ts;
-    const cssW = ts * W;
-    const cssH = ts * H;
-    canvas.style.width = cssW + "px";
-    canvas.style.height = cssH + "px";
-    canvas.width = Math.floor(cssW * dpr);
-    canvas.height = Math.floor(cssH * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+    const parent = canvas.parentElement;
+    const w = parent.clientWidth;
+    const h = parent.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / Math.max(1, h);
+    camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize);
   resize();
@@ -212,16 +331,31 @@ async function main() {
     });
   });
 
-  // --- Input: pointerdown + drag-to-paint ---
+  // --- Input: raycast against ground plane ---
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  // Invisible pick-plane matching the ground.
+  const pickPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(W, H),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  pickPlane.rotation.x = -Math.PI / 2;
+  pickPlane.position.set(W / 2, 0, H / 2);
+  scene.add(pickPlane);
+
   let pointerDown = false;
   let lastTile = -1;
 
   function tileFromEvent(e) {
     const rect = canvas.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-    const tx = Math.floor(cx / tileSize);
-    const ty = Math.floor(cy / tileSize);
+    ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObject(pickPlane);
+    if (hits.length === 0) return null;
+    const p = hits[0].point;
+    const tx = Math.floor(p.x);
+    const ty = Math.floor(p.z);
     if (tx < 0 || ty < 0 || tx >= W || ty >= H) return null;
     return { tx, ty };
   }
@@ -258,48 +392,6 @@ async function main() {
   const moneyEl = document.getElementById("money");
   const guestEl = document.getElementById("guests");
 
-  const COLORS = ["#4a8f3e", "#c9b07a", "#b03030"];
-  const SHIRT_COLORS = [
-    "#e23b3b", "#3b82e2", "#2ea84a", "#a64ad4",
-    "#ff9f40", "#e84a9a", "#14b8a6", "#eab308",
-  ];
-  const SKIN_COLOR = "#f3c9a0";
-  const LEG_COLOR = "#2b2b2b";
-  const RIDING_SHIRT = "#ffe066";
-
-  function drawGuest(ctx, cx, cy, tileSize, state, seed) {
-    const headR = Math.max(1, Math.floor(tileSize * 0.11));
-    const shirtW = Math.max(2, Math.floor(tileSize * 0.32));
-    const shirtH = Math.max(2, Math.floor(tileSize * 0.28));
-    const legW = Math.max(1, Math.floor(tileSize * 0.12));
-    const legH = Math.max(1, Math.floor(tileSize * 0.18));
-    const gap = Math.max(1, Math.floor(tileSize * 0.03));
-
-    const totalH = headR * 2 + gap + shirtH + legH;
-    const topY = Math.floor(cy - totalH / 2);
-    const headCy = topY + headR;
-    const shirtY = topY + headR * 2 + gap;
-    const legY = shirtY + shirtH;
-    const shirtX = Math.floor(cx - shirtW / 2);
-    const legGap = Math.max(1, Math.floor(legW * 0.4));
-    const leftLegX = Math.floor(cx - legGap / 2 - legW);
-    const rightLegX = Math.floor(cx + legGap / 2);
-
-    ctx.fillStyle = LEG_COLOR;
-    ctx.fillRect(leftLegX, legY, legW, legH);
-    ctx.fillRect(rightLegX, legY, legW, legH);
-
-    ctx.fillStyle = state === 2
-      ? RIDING_SHIRT
-      : SHIRT_COLORS[seed % SHIRT_COLORS.length];
-    ctx.fillRect(shirtX, shirtY, shirtW, shirtH);
-
-    ctx.fillStyle = SKIN_COLOR;
-    ctx.beginPath();
-    ctx.arc(cx, headCy, headR, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
   let lastFrame = performance.now();
 
   function frame(now) {
@@ -307,59 +399,29 @@ async function main() {
     lastFrame = now;
     ex.tick(Math.round(dt));
 
-    // Background grass already via canvas bg color; still, paint tiles.
-    ctx.fillStyle = COLORS[0];
-    ctx.fillRect(0, 0, W * tileSize, H * tileSize);
+    syncTiles();
 
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const t = ex.get_tile(x, y);
-        if (t === 0) continue;
-        ctx.fillStyle = COLORS[t];
-        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-        if (t === 2) {
-          // Coaster: inner detail
-          ctx.fillStyle = "#5a0a0a";
-          const pad = Math.max(2, Math.floor(tileSize * 0.2));
-          ctx.fillRect(x * tileSize + pad, y * tileSize + pad,
-                       tileSize - pad * 2, tileSize - pad * 2);
-        }
+    // Guests.
+    for (let i = 0; i < MAX_GUESTS; i++) {
+      const packed = ex.get_guest(i);
+      const g = guestPool[i];
+      if (packed === 0) {
+        g.visible = false;
+        continue;
+      }
+      const state = packed & 0xff;
+      const gx = (packed >> 8) & 0xff;
+      const gy = (packed >> 16) & 0xff;
+      g.visible = true;
+      g.position.set(gx + 0.5, 0, gy + 0.5);
+      const target = state === 2 ? RIDING_SHIRT : g.userData.baseColor;
+      if (g.userData.shirtMat.color.getHex() !== target) {
+        g.userData.shirtMat.color.setHex(target);
       }
     }
 
-    // Grid lines (faint)
-    ctx.strokeStyle = "rgba(0,0,0,0.12)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = 0; x <= W; x++) {
-      ctx.moveTo(x * tileSize + 0.5, 0);
-      ctx.lineTo(x * tileSize + 0.5, H * tileSize);
-    }
-    for (let y = 0; y <= H; y++) {
-      ctx.moveTo(0, y * tileSize + 0.5);
-      ctx.lineTo(W * tileSize, y * tileSize + 0.5);
-    }
-    ctx.stroke();
+    renderer.render(scene, camera);
 
-    // Entrance marker
-    ctx.fillStyle = "#f5c242";
-    const ex_px = ENT_X * tileSize;
-    const ey_px = ENT_Y * tileSize;
-    ctx.fillRect(ex_px, ey_px, Math.max(2, Math.floor(tileSize * 0.2)), tileSize);
-
-    // Guests
-    for (let i = 0; i < MAX_GUESTS; i++) {
-      const g = ex.get_guest(i);
-      if (g === 0) continue;
-      const state = g & 0xff;
-      const gx = (g >> 8) & 0xff;
-      const gy = (g >> 16) & 0xff;
-      const cx = gx * tileSize + tileSize / 2;
-      const cy = gy * tileSize + tileSize / 2;
-      drawGuest(ctx, cx, cy, tileSize, state, i);
-    }
-
-    // HUD
     moneyEl.textContent = ex.get_money();
     guestEl.textContent = ex.get_guest_count();
 
