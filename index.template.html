@@ -131,6 +131,8 @@
     <button class="tool active" data-tool="0">Path<small>$1</small></button>
     <button class="tool" data-tool="1">Track<small>$10</small></button>
     <button class="tool" data-tool="2">Bulldoze<small>free</small></button>
+    <button class="tool" data-tool="3">Raise<small>$2</small></button>
+    <button class="tool" data-tool="4">Lower<small>free</small></button>
   </footer>
 </div>
 
@@ -182,6 +184,7 @@ async function main() {
   const PATH_COLOR = 0xc9b07a;
   const COASTER_COLOR = 0xb03030;
   const ENTRANCE_COLOR = 0xf5c242;
+  const HEIGHT_UNIT = 0.4;
 
   const canvas = document.getElementById("game");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -236,7 +239,7 @@ async function main() {
 
   const tileCache = new Map();
 
-  function buildTileMesh(type, x, y) {
+  function buildTileMesh(type, x, y, height) {
     if (type === 1) {
       const m = new THREE.Mesh(pathGeo, pathMat);
       m.position.set(x + 0.5, 0.05, y + 0.5);
@@ -244,7 +247,7 @@ async function main() {
     }
     if (type === 2) {
       const m = new THREE.Mesh(trackGeo, trackMat);
-      m.position.set(x + 0.5, 0.075, y + 0.5);
+      m.position.set(x + 0.5, 0.075 + height * HEIGHT_UNIT, y + 0.5);
       return m;
     }
     return null;
@@ -255,16 +258,17 @@ async function main() {
       for (let x = 0; x < W; x++) {
         const key = y * W + x;
         const t = ex.get_tile(x, y);
+        const h = t === 2 ? ex.get_height(x, y) : 0;
         const cached = tileCache.get(key);
-        if (cached && cached.type === t) continue;
+        if (cached && cached.type === t && cached.height === h) continue;
         if (cached) {
           tileGroup.remove(cached.mesh);
           tileCache.delete(key);
         }
         if (t !== 0) {
-          const mesh = buildTileMesh(t, x, y);
+          const mesh = buildTileMesh(t, x, y, h);
           tileGroup.add(mesh);
-          tileCache.set(key, { type: t, mesh });
+          tileCache.set(key, { type: t, height: h, mesh });
         }
       }
     }
@@ -405,7 +409,9 @@ async function main() {
       const gx = (packed >> 8) & 0xff;
       const gy = (packed >> 16) & 0xff;
       g.visible = true;
-      const yOffset = state === 2 ? 0.15 : 0;
+      const yOffset = state === 2
+        ? 0.15 + ex.get_height(gx, gy) * HEIGHT_UNIT
+        : 0;
       g.position.set(gx + 0.5, yOffset, gy + 0.5);
       const target = state === 2 ? RIDING_SHIRT : g.userData.baseColor;
       if (g.userData.shirtMat.color.getHex() !== target) {
