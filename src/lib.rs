@@ -46,6 +46,9 @@ struct Guest {
     ride_tiles_visited: u8,
     ride_phase: u8,
     ride_origin: u16,
+    // Per-guest seed used to permute BFS neighbor order so guests disperse
+    // across equal-length paths at forks instead of all taking the same branch.
+    path_seed: u32,
 }
 
 struct World {
@@ -67,6 +70,7 @@ static mut WORLD: World = World {
         ride_tiles_visited: 0,
         ride_phase: 0,
         ride_origin: 0,
+        path_seed: 0,
     }; MAX_GUESTS],
     money: STARTING_MONEY,
     spawn_timer: 0,
@@ -87,6 +91,21 @@ fn xorshift(s: &mut u32) -> u32 {
     x ^= x << 5;
     *s = x;
     x
+}
+
+// Deterministic Fisher-Yates shuffle of the 4 grid neighbors, driven by a
+// per-guest seed so each guest breaks ties consistently but differently.
+fn shuffled_neighbors(seed: u32) -> [(i32, i32); 4] {
+    let mut a: [(i32, i32); 4] = [(1,0),(-1,0),(0,1),(0,-1)];
+    let mut s = if seed == 0 { 0x9E3779B9 } else { seed };
+    let mut i = 3usize;
+    while i > 0 {
+        s = s.wrapping_mul(1664525).wrapping_add(1013904223);
+        let j = (s as usize) % (i + 1);
+        a.swap(i, j);
+        i -= 1;
+    }
+    a
 }
 
 fn xy_to_idx(x: usize, y: usize) -> usize { y * W + x }
@@ -141,6 +160,7 @@ fn recompute_paths(w: &mut World) {
 
 fn try_spawn_guest(w: &mut World) -> bool {
     if w.boarding_tile < 0 { return false; }
+    let seed = xorshift(&mut w.rng);
     for g in w.guests.iter_mut() {
         if g.state == STATE_FREE {
             g.state = STATE_TO_RIDE;
@@ -149,6 +169,7 @@ fn try_spawn_guest(w: &mut World) -> bool {
             g.ride_tiles_visited = 0;
             g.ride_phase = 0;
             g.ride_origin = 0;
+            g.path_seed = seed;
             return true;
         }
     }
@@ -162,6 +183,7 @@ fn step_bfs(
     from: u16,
     target: u16,
     filter: fn(&[u8; N], usize) -> bool,
+    seed: u32,
 ) -> Option<u16> {
     if from == target { return None; }
     let mut queue: [u16; N] = [0; N];
@@ -172,12 +194,12 @@ fn step_bfs(
     queue[tail] = from; tail += 1;
     visited[from as usize] = true;
 
+    let neighbors = shuffled_neighbors(seed);
     let mut found = false;
     while head < tail {
         let cur = queue[head] as usize; head += 1;
         if cur as u16 == target { found = true; break; }
         let cx = idx_to_x(cur); let cy = idx_to_y(cur);
-        let neighbors: [(i32, i32); 4] = [(1,0),(-1,0),(0,1),(0,-1)];
         for (dx, dy) in neighbors.iter() {
             let nx = cx as i32 + dx; let ny = cy as i32 + dy;
             if nx < 0 || ny < 0 || nx >= W as i32 || ny >= H as i32 { continue; }
@@ -199,12 +221,12 @@ fn step_bfs(
     }
 }
 
-fn step_toward(w: &World, from: u16, target: u16) -> Option<u16> {
-    step_bfs(&w.tiles, from, target, walkable)
+fn step_toward(w: &World, from: u16, target: u16, seed: u32) -> Option<u16> {
+    step_bfs(&w.tiles, from, target, walkable, seed)
 }
 
-fn step_along_track(w: &World, from: u16, target: u16) -> Option<u16> {
-    step_bfs(&w.tiles, from, target, is_track)
+fn step_along_track(w: &World, from: u16, target: u16, seed: u32) -> Option<u16> {
+    step_bfs(&w.tiles, from, target, is_track, seed)
 }
 
 // Pick the farthest reachable track tile from `boarding` using BFS over track-only
@@ -257,7 +279,8 @@ fn guest_tick(w: &mut World, gi: usize, dt: u32) {
                     w.guests[gi].step_timer = 0;
                     return;
                 }
-                match step_toward(w, cur, target) {
+                let seed = w.guests[gi].path_seed;
+                match step_toward(w, cur, target, seed) {
                     Some(next) => { w.guests[gi].tile = next; }
                     None => {
                         w.guests[gi].state = STATE_TO_EXIT;
@@ -276,7 +299,8 @@ fn guest_tick(w: &mut World, gi: usize, dt: u32) {
                 timer -= RIDE_STEP_MS;
                 let cur = w.guests[gi].tile;
                 let target = if w.guests[gi].ride_phase == 0 { far } else { boarding };
-                match step_along_track(w, cur, target) {
+                let seed = w.guests[gi].path_seed;
+                match step_along_track(w, cur, target, seed) {
                     Some(next) => {
                         w.guests[gi].tile = next;
                         w.guests[gi].ride_tiles_visited =
@@ -322,7 +346,8 @@ fn guest_tick(w: &mut World, gi: usize, dt: u32) {
                     w.guests[gi].state = STATE_FREE;
                     return;
                 }
-                match step_toward(w, cur, ENTRANCE_IDX) {
+                let seed = w.guests[gi].path_seed;
+                match step_toward(w, cur, ENTRANCE_IDX, seed) {
                     Some(next) => { w.guests[gi].tile = next; }
                     None => {
                         w.guests[gi].state = STATE_FREE;
@@ -349,6 +374,7 @@ pub extern "C" fn init(seed: u32) {
         ride_tiles_visited: 0,
         ride_phase: 0,
         ride_origin: 0,
+        path_seed: 0,
     }; MAX_GUESTS];
     w.money = STARTING_MONEY;
     w.spawn_timer = 0;
@@ -371,8 +397,6 @@ pub extern "C" fn tick(dt_ms: u32) {
             guest_tick(w, i, dt);
         }
     }
-    // Consume rng so it's not unused.
-    let _ = xorshift(&mut w.rng);
 }
 
 #[no_mangle]
