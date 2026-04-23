@@ -259,6 +259,46 @@ async function main() {
   const guestEl = document.getElementById("guests");
 
   const COLORS = ["#4a8f3e", "#c9b07a", "#b03030"];
+  const SHIRT_COLORS = [
+    "#e23b3b", "#3b82e2", "#2ea84a", "#a64ad4",
+    "#ff9f40", "#e84a9a", "#14b8a6", "#eab308",
+  ];
+  const SKIN_COLOR = "#f3c9a0";
+  const LEG_COLOR = "#2b2b2b";
+  const RIDING_SHIRT = "#ffe066";
+
+  function drawGuest(ctx, cx, cy, tileSize, state, seed) {
+    const headR = Math.max(1, Math.floor(tileSize * 0.11));
+    const shirtW = Math.max(2, Math.floor(tileSize * 0.32));
+    const shirtH = Math.max(2, Math.floor(tileSize * 0.28));
+    const legW = Math.max(1, Math.floor(tileSize * 0.12));
+    const legH = Math.max(1, Math.floor(tileSize * 0.18));
+    const gap = Math.max(1, Math.floor(tileSize * 0.03));
+
+    const totalH = headR * 2 + gap + shirtH + legH;
+    const topY = Math.floor(cy - totalH / 2);
+    const headCy = topY + headR;
+    const shirtY = topY + headR * 2 + gap;
+    const legY = shirtY + shirtH;
+    const shirtX = Math.floor(cx - shirtW / 2);
+    const legGap = Math.max(1, Math.floor(legW * 0.4));
+    const leftLegX = Math.floor(cx - legGap / 2 - legW);
+    const rightLegX = Math.floor(cx + legGap / 2);
+
+    ctx.fillStyle = LEG_COLOR;
+    ctx.fillRect(leftLegX, legY, legW, legH);
+    ctx.fillRect(rightLegX, legY, legW, legH);
+
+    ctx.fillStyle = state === 2
+      ? RIDING_SHIRT
+      : SHIRT_COLORS[seed % SHIRT_COLORS.length];
+    ctx.fillRect(shirtX, shirtY, shirtW, shirtH);
+
+    ctx.fillStyle = SKIN_COLOR;
+    ctx.beginPath();
+    ctx.arc(cx, headCy, headR, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   let lastFrame = performance.now();
 
@@ -308,8 +348,6 @@ async function main() {
     ctx.fillRect(ex_px, ey_px, Math.max(2, Math.floor(tileSize * 0.2)), tileSize);
 
     // Guests
-    ctx.fillStyle = "#ffffff";
-    const r = Math.max(2, Math.floor(tileSize * 0.18));
     for (let i = 0; i < MAX_GUESTS; i++) {
       const g = ex.get_guest(i);
       if (g === 0) continue;
@@ -318,10 +356,7 @@ async function main() {
       const gy = (g >> 16) & 0xff;
       const cx = gx * tileSize + tileSize / 2;
       const cy = gy * tileSize + tileSize / 2;
-      ctx.fillStyle = state === 2 ? "#ffe066" : "#ffffff";
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fill();
+      drawGuest(ctx, cx, cy, tileSize, state, i);
     }
 
     // HUD
