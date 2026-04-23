@@ -21,11 +21,15 @@ const TILE_TRACK: u8 = 2;
 const TOOL_PATH: u32 = 0;
 const TOOL_TRACK: u32 = 1;
 const TOOL_BULLDOZE: u32 = 2;
+const TOOL_RAISE: u32 = 3;
+const TOOL_LOWER: u32 = 4;
 
 const PATH_COST: i32 = 1;
 const TRACK_COST: i32 = 10;
+const RAISE_COST: i32 = 2;
 const RIDE_FEE: i32 = 15;
 const STARTING_MONEY: i32 = 100;
+const MAX_HEIGHT: u8 = 5;
 
 const MAX_GUESTS: usize = 64;
 const SPAWN_INTERVAL_MS: u32 = 2000;
@@ -50,6 +54,7 @@ struct Guest {
 
 struct World {
     tiles: [u8; N],
+    heights: [u8; N],
     guests: [Guest; MAX_GUESTS],
     money: i32,
     spawn_timer: u32,
@@ -60,6 +65,7 @@ struct World {
 
 static mut WORLD: World = World {
     tiles: [TILE_GRASS; N],
+    heights: [0; N],
     guests: [Guest {
         state: STATE_FREE,
         tile: 0,
@@ -342,6 +348,7 @@ fn guest_tick(w: &mut World, gi: usize, dt: u32) {
 pub extern "C" fn init(seed: u32) {
     let w = world();
     w.tiles = [TILE_GRASS; N];
+    w.heights = [0; N];
     w.guests = [Guest {
         state: STATE_FREE,
         tile: 0,
@@ -396,10 +403,26 @@ pub extern "C" fn click(tile_x: u32, tile_y: u32, tool: u32) -> u32 {
             if w.money < TRACK_COST { return 0; }
             w.money -= TRACK_COST;
             w.tiles[idx] = TILE_TRACK;
+            w.heights[idx] = 0;
         }
         TOOL_BULLDOZE => {
             if w.tiles[idx] == TILE_GRASS { return 0; }
             w.tiles[idx] = TILE_GRASS;
+            w.heights[idx] = 0;
+        }
+        TOOL_RAISE => {
+            if w.tiles[idx] != TILE_TRACK { return 0; }
+            if w.heights[idx] >= MAX_HEIGHT { return 0; }
+            if w.money < RAISE_COST { return 0; }
+            w.money -= RAISE_COST;
+            w.heights[idx] += 1;
+            return 1;
+        }
+        TOOL_LOWER => {
+            if w.tiles[idx] != TILE_TRACK { return 0; }
+            if w.heights[idx] == 0 { return 0; }
+            w.heights[idx] -= 1;
+            return 1;
         }
         _ => return 0,
     }
@@ -422,6 +445,12 @@ pub extern "C" fn get_guest_count() -> u32 {
 pub extern "C" fn get_tile(x: u32, y: u32) -> u32 {
     if x >= W as u32 || y >= H as u32 { return 0; }
     world().tiles[xy_to_idx(x as usize, y as usize)] as u32
+}
+
+#[no_mangle]
+pub extern "C" fn get_height(x: u32, y: u32) -> u32 {
+    if x >= W as u32 || y >= H as u32 { return 0; }
+    world().heights[xy_to_idx(x as usize, y as usize)] as u32
 }
 
 // Returns packed: state(8) | x(8) | y(8) | reserved(8). 0 = free slot.

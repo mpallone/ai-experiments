@@ -36,6 +36,50 @@ if (ex.get_tile(3, 7) !== 1) throw new Error("path tile not set");
 if (!ex.click(6, 8, 1)) throw new Error("second track tile should place");
 if (ex.get_tile(6, 8) !== 2) throw new Error("second track tile not set");
 
+// ---- Elevation ----
+// Freshly placed track starts at height 0.
+if (ex.get_height(7, 7) !== 0) throw new Error("new track should start at height 0");
+
+// Raise tool is $2 per level.
+const moneyBeforeRaise = ex.get_money();
+if (!ex.click(7, 7, 3)) throw new Error("raise should succeed on track");
+if (ex.get_height(7, 7) !== 1) throw new Error("height should be 1 after one raise");
+if (ex.get_money() !== moneyBeforeRaise - 2) throw new Error("raise should cost $2");
+
+// Raising clamps at MAX_HEIGHT (=5).
+for (let i = 0; i < 4; i++) {
+  if (!ex.click(7, 7, 3)) throw new Error(`raise ${i+2} should succeed`);
+}
+if (ex.get_height(7, 7) !== 5) throw new Error("height should cap at 5");
+const moneyAtCap = ex.get_money();
+if (ex.click(7, 7, 3)) throw new Error("raise past MAX_HEIGHT should fail");
+if (ex.get_height(7, 7) !== 5) throw new Error("height should stay at 5");
+if (ex.get_money() !== moneyAtCap) throw new Error("failed raise should not charge money");
+
+// Lower is free and decrements.
+if (!ex.click(7, 7, 4)) throw new Error("lower should succeed");
+if (ex.get_height(7, 7) !== 4) throw new Error("height should drop to 4");
+if (ex.get_money() !== moneyAtCap) throw new Error("lower should be free");
+
+// Lower clamps at 0.
+for (let i = 0; i < 4; i++) ex.click(7, 7, 4);
+if (ex.get_height(7, 7) !== 0) throw new Error("height should reach 0");
+if (ex.click(7, 7, 4)) throw new Error("lower below 0 should fail");
+if (ex.get_height(7, 7) !== 0) throw new Error("height should stay at 0");
+
+// Raise/lower only work on track tiles.
+if (ex.click(2, 7, 3)) throw new Error("raise on path should fail");
+if (ex.click(2, 7, 4)) throw new Error("lower on path should fail");
+if (ex.click(15, 10, 3)) throw new Error("raise on grass should fail");
+
+// Bulldozing a raised track resets its height.
+ex.click(8, 7, 3);
+ex.click(8, 7, 3);
+if (ex.get_height(8, 7) !== 2) throw new Error("setup: expected height 2");
+ex.click(8, 7, 2);
+if (ex.get_tile(8, 7) !== 0) throw new Error("bulldoze should clear tile");
+if (ex.get_height(8, 7) !== 0) throw new Error("bulldoze should reset height");
+
 // Tick for 10 simulated seconds in 100ms steps.
 let maxGuests = 0;
 const startMoney = ex.get_money();
@@ -76,8 +120,12 @@ ex.click(9, 7, 2);
 if (ex.get_tile(9, 7) !== 0) throw new Error("track bulldoze failed");
 
 // Test re-init.
+// Raise one more tile before reset to confirm init clears heights.
+ex.click(6, 8, 3);
+if (ex.get_height(6, 8) !== 1) throw new Error("setup: pre-init raise");
 ex.init(1);
 if (ex.get_money() !== 100) throw new Error("init did not reset money");
 if (ex.get_tile(6, 7) !== 0) throw new Error("init did not reset tiles");
+if (ex.get_height(6, 8) !== 0) throw new Error("init did not reset heights");
 
 console.log("OK: all smoke tests passed");
