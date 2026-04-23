@@ -129,7 +129,7 @@
   </main>
   <footer>
     <button class="tool active" data-tool="0">Path<small>$1</small></button>
-    <button class="tool" data-tool="1">Coaster<small>$50</small></button>
+    <button class="tool" data-tool="1">Track<small>$10</small></button>
     <button class="tool" data-tool="2">Bulldoze<small>free</small></button>
   </footer>
 </div>
@@ -181,7 +181,6 @@ async function main() {
   const GRASS_COLOR = 0x4a8f3e;
   const PATH_COLOR = 0xc9b07a;
   const COASTER_COLOR = 0xb03030;
-  const COASTER_INNER_COLOR = 0x5a0a0a;
   const ENTRANCE_COLOR = 0xf5c242;
 
   const canvas = document.getElementById("game");
@@ -232,10 +231,8 @@ async function main() {
 
   const pathGeo = new THREE.BoxGeometry(1, 0.1, 1);
   const pathMat = new THREE.MeshStandardMaterial({ color: PATH_COLOR });
-  const coasterGeo = new THREE.BoxGeometry(1, 0.6, 1);
-  const coasterMat = new THREE.MeshStandardMaterial({ color: COASTER_COLOR });
-  const coasterInnerGeo = new THREE.BoxGeometry(0.6, 0.1, 0.6);
-  const coasterInnerMat = new THREE.MeshStandardMaterial({ color: COASTER_INNER_COLOR });
+  const trackGeo = new THREE.BoxGeometry(1, 0.15, 1);
+  const trackMat = new THREE.MeshStandardMaterial({ color: COASTER_COLOR });
 
   const tileCache = new Map();
 
@@ -246,14 +243,9 @@ async function main() {
       return m;
     }
     if (type === 2) {
-      const group = new THREE.Group();
-      const body = new THREE.Mesh(coasterGeo, coasterMat);
-      body.position.set(x + 0.5, 0.3, y + 0.5);
-      group.add(body);
-      const inner = new THREE.Mesh(coasterInnerGeo, coasterInnerMat);
-      inner.position.set(x + 0.5, 0.65, y + 0.5);
-      group.add(inner);
-      return group;
+      const m = new THREE.Mesh(trackGeo, trackMat);
+      m.position.set(x + 0.5, 0.075, y + 0.5);
+      return m;
     }
     return null;
   }
@@ -413,7 +405,8 @@ async function main() {
       const gx = (packed >> 8) & 0xff;
       const gy = (packed >> 16) & 0xff;
       g.visible = true;
-      g.position.set(gx + 0.5, 0, gy + 0.5);
+      const yOffset = state === 2 ? 0.15 : 0;
+      g.position.set(gx + 0.5, yOffset, gy + 0.5);
       const target = state === 2 ? RIDING_SHIRT : g.userData.baseColor;
       if (g.userData.shirtMat.color.getHex() !== target) {
         g.userData.shirtMat.color.setHex(target);

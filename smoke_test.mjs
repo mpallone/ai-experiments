@@ -14,19 +14,27 @@ const ENT_X = ex.entrance_x();
 const ENT_Y = ex.entrance_y();
 console.log(`grid ${W}x${H}, entrance (${ENT_X},${ENT_Y}), money=${ex.get_money()}`);
 
-// Build a straight path from (1,7) to (5,7), then a coaster at (6,7).
+// Build a straight path from (1,7) to (5,7), then a 4-tile track from (6,7) to (9,7).
 for (let x = 1; x <= 5; x++) {
   const r = ex.click(x, 7, 0);
   if (!r) throw new Error(`path place failed at (${x},7)`);
 }
-if (!ex.click(6, 7, 1)) throw new Error("coaster place failed");
+for (let x = 6; x <= 9; x++) {
+  const r = ex.click(x, 7, 1);
+  if (!r) throw new Error(`track place failed at (${x},7)`);
+}
 
 console.log(`after build: money=${ex.get_money()}`);
-// $100 - 5 paths - 1 coaster = 100 - 5 - 50 = 45
-if (ex.get_money() !== 45) throw new Error(`expected money=45, got ${ex.get_money()}`);
+// $100 - 5 paths * $1 - 4 track * $10 = 100 - 5 - 40 = 55
+if (ex.get_money() !== 55) throw new Error(`expected money=55, got ${ex.get_money()}`);
 
-if (ex.get_tile(6, 7) !== 2) throw new Error("coaster tile not set");
+if (ex.get_tile(6, 7) !== 2) throw new Error("boarding track tile not set");
+if (ex.get_tile(9, 7) !== 2) throw new Error("far-end track tile not set");
 if (ex.get_tile(3, 7) !== 1) throw new Error("path tile not set");
+
+// Multi-placement is allowed (no one-per-park cap).
+if (!ex.click(6, 8, 1)) throw new Error("second track tile should place");
+if (ex.get_tile(6, 8) !== 2) throw new Error("second track tile not set");
 
 // Tick for 10 simulated seconds in 100ms steps.
 let maxGuests = 0;
@@ -57,11 +65,15 @@ for (let i = 0; i < ex.max_guests(); i++) {
 }
 // It's fine if no guests are alive right at the end of the sim; the maxGuests check above is the real test.
 
-// Test bulldoze.
+// Test bulldoze on path.
 const before = ex.get_tile(3, 7);
 if (before !== 1) throw new Error("expected path at (3,7)");
 ex.click(3, 7, 2);
 if (ex.get_tile(3, 7) !== 0) throw new Error("bulldoze failed");
+
+// Test bulldoze on track.
+ex.click(9, 7, 2);
+if (ex.get_tile(9, 7) !== 0) throw new Error("track bulldoze failed");
 
 // Test re-init.
 ex.init(1);
