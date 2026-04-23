@@ -17,15 +17,18 @@ const ENTRANCE_IDX: u16 = (ENTRANCE_Y * W + ENTRANCE_X) as u16;
 const TILE_GRASS: u8 = 0;
 const TILE_PATH: u8 = 1;
 const TILE_TRACK: u8 = 2;
+const TILE_LOOP: u8 = 3;
 
 const TOOL_PATH: u32 = 0;
 const TOOL_TRACK: u32 = 1;
 const TOOL_BULLDOZE: u32 = 2;
 const TOOL_RAISE: u32 = 3;
 const TOOL_LOWER: u32 = 4;
+const TOOL_LOOP: u32 = 5;
 
 const PATH_COST: i32 = 1;
 const TRACK_COST: i32 = 10;
+const LOOP_COST: i32 = 25;
 const RAISE_COST: i32 = 2;
 const RIDE_FEE: i32 = 15;
 const STARTING_MONEY: i32 = 100;
@@ -35,6 +38,7 @@ const MAX_GUESTS: usize = 64;
 const SPAWN_INTERVAL_MS: u32 = 2000;
 const GUEST_STEP_MS: u32 = 300;
 const RIDE_STEP_MS: u32 = 120;
+const RIDE_STEP_LOOP_MS: u32 = 600;
 const MAX_RIDE_TILES: u32 = 32;
 
 const STATE_FREE: u8 = 0;
@@ -118,15 +122,16 @@ fn xy_to_idx(x: usize, y: usize) -> usize { y * W + x }
 fn idx_to_x(i: usize) -> usize { i % W }
 fn idx_to_y(i: usize) -> usize { i / W }
 
-// Is this tile walkable for a guest (path, track, or the entrance at (0,7))
+// Is this tile walkable for a guest (path, track, loop, or the entrance at (0,7))
 fn walkable(tiles: &[u8; N], i: usize) -> bool {
     if i == ENTRANCE_IDX as usize { return true; }
     let t = tiles[i];
-    t == TILE_PATH || t == TILE_TRACK
+    t == TILE_PATH || t == TILE_TRACK || t == TILE_LOOP
 }
 
 fn is_track(tiles: &[u8; N], i: usize) -> bool {
-    tiles[i] == TILE_TRACK
+    let t = tiles[i];
+    t == TILE_TRACK || t == TILE_LOOP
 }
 
 // BFS from entrance over walkable tiles, populating parent[] for shortest path back.
@@ -146,7 +151,7 @@ fn recompute_paths(w: &mut World) {
 
     while head < tail {
         let cur = queue[head] as usize; head += 1;
-        if w.tiles[cur] == TILE_TRACK && w.boarding_tile < 0 {
+        if is_track(&w.tiles, cur) && w.boarding_tile < 0 {
             w.boarding_tile = cur as i16;
         }
         let cx = idx_to_x(cur); let cy = idx_to_y(cur);
@@ -301,8 +306,15 @@ fn guest_tick(w: &mut World, gi: usize, dt: u32) {
             let boarding = w.guests[gi].ride_origin;
             let far = pick_ride_target(w, boarding);
             let mut timer = w.guests[gi].step_timer + dt;
-            while timer >= RIDE_STEP_MS {
-                timer -= RIDE_STEP_MS;
+            loop {
+                let cur_tile_idx = w.guests[gi].tile as usize;
+                let step = if w.tiles[cur_tile_idx] == TILE_LOOP {
+                    RIDE_STEP_LOOP_MS
+                } else {
+                    RIDE_STEP_MS
+                };
+                if timer < step { break; }
+                timer -= step;
                 let cur = w.guests[gi].tile;
                 let target = if w.guests[gi].ride_phase == 0 { far } else { boarding };
                 let seed = w.guests[gi].path_seed;
@@ -429,13 +441,20 @@ pub extern "C" fn click(tile_x: u32, tile_y: u32, tool: u32) -> u32 {
             w.tiles[idx] = TILE_TRACK;
             w.heights[idx] = 0;
         }
+        TOOL_LOOP => {
+            if w.tiles[idx] != TILE_GRASS { return 0; }
+            if w.money < LOOP_COST { return 0; }
+            w.money -= LOOP_COST;
+            w.tiles[idx] = TILE_LOOP;
+            w.heights[idx] = 0;
+        }
         TOOL_BULLDOZE => {
             if w.tiles[idx] == TILE_GRASS { return 0; }
             w.tiles[idx] = TILE_GRASS;
             w.heights[idx] = 0;
         }
         TOOL_RAISE => {
-            if w.tiles[idx] != TILE_TRACK { return 0; }
+            if w.tiles[idx] != TILE_TRACK && w.tiles[idx] != TILE_LOOP { return 0; }
             if w.heights[idx] >= MAX_HEIGHT { return 0; }
             if w.money < RAISE_COST { return 0; }
             w.money -= RAISE_COST;
@@ -443,7 +462,7 @@ pub extern "C" fn click(tile_x: u32, tile_y: u32, tool: u32) -> u32 {
             return 1;
         }
         TOOL_LOWER => {
-            if w.tiles[idx] != TILE_TRACK { return 0; }
+            if w.tiles[idx] != TILE_TRACK && w.tiles[idx] != TILE_LOOP { return 0; }
             if w.heights[idx] == 0 { return 0; }
             w.heights[idx] -= 1;
             return 1;

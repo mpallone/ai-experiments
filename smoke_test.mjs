@@ -80,6 +80,31 @@ ex.click(8, 7, 2);
 if (ex.get_tile(8, 7) !== 0) throw new Error("bulldoze should clear tile");
 if (ex.get_height(8, 7) !== 0) throw new Error("bulldoze should reset height");
 
+// ---- Loop tile ----
+const TOOL_LOOP = 5;
+const TILE_LOOP = 3;
+const LOOP_COST = 25;
+
+const m0 = ex.get_money();
+if (!ex.click(10, 7, TOOL_LOOP)) throw new Error("loop place failed at (10,7)");
+if (ex.get_tile(10, 7) !== TILE_LOOP) throw new Error("loop tile not set");
+if (ex.get_money() !== m0 - LOOP_COST) throw new Error("loop should cost $25");
+
+// Raise/lower work on loops.
+if (!ex.click(10, 7, 3)) throw new Error("raise on loop should succeed");
+if (ex.get_height(10, 7) !== 1) throw new Error("loop raise did not increment");
+if (!ex.click(10, 7, 4)) throw new Error("lower on loop should succeed");
+if (ex.get_height(10, 7) !== 0) throw new Error("loop lower did not decrement");
+
+// Placement guards.
+if (ex.click(10, 7, TOOL_LOOP)) throw new Error("loop should not place on existing loop");
+if (ex.click(2, 7, TOOL_LOOP)) throw new Error("loop should not place on path");
+
+// Bulldoze clears the loop and resets height.
+if (!ex.click(10, 7, 2)) throw new Error("bulldoze on loop failed");
+if (ex.get_tile(10, 7) !== 0) throw new Error("loop bulldoze did not clear");
+if (ex.get_height(10, 7) !== 0) throw new Error("loop bulldoze did not reset height");
+
 // Tick for 10 simulated seconds in 100ms steps.
 let maxGuests = 0;
 const startMoney = ex.get_money();
